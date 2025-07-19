@@ -1,0 +1,30 @@
+#include <stdint.h>
+
+int main(void)
+{
+    // Define addresses of RCC and GPIO registers
+    uint32_t *pRCC_AHB2ENR   = (uint32_t *)0x4002104C;
+    uint32_t *pGPIOA_MODER   = (uint32_t *)0x48000000;
+    uint32_t *pGPIOC_MODER   = (uint32_t *)0x48000800;
+    uint32_t *pGPIOA_ODR     = (uint32_t *)0x48000014;
+    uint32_t *pGPIOC_ODR     = (uint32_t *)0x48000814;
+
+    // 1. Enable GPIOA and GPIOC clocks
+    *pRCC_AHB2ENR |= (1 << 0);  // Enable GPIOA clock
+    *pRCC_AHB2ENR |= (1 << 2);  // Enable GPIOC clock
+
+    // 2. Configure PA5 as output
+    *pGPIOA_MODER &= ~(3 << (5 * 2));  // Clear bits 11:10
+    *pGPIOA_MODER |=  (1 << (5 * 2));  // Set bit 10 for General purpose output
+
+    // 3. Configure PC10 as output
+    *pGPIOC_MODER &= ~(3 << (10 * 2)); // Clear bits 21:20
+    *pGPIOC_MODER |=  (1 << (10 * 2)); // Set bit 20 for General purpose output
+
+    // 4. Set PA5 and PC10 high to turn ON LEDs
+    *pGPIOA_ODR |= (1 << 5);   // Set PA5
+    *pGPIOC_ODR |= (1 << 10);  // Set PC10
+
+    // Optional: infinite loop to prevent program exit
+    while (1);
+}
