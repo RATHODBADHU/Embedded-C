@@ -1,0 +1,42 @@
+#include <stdint.h>
+
+void delay(void);
+
+int main(void)
+{
+    // Define pointers to RCC and GPIO registers
+    uint32_t *pRCC_AHB2ENR = (uint32_t *)0x4002104C;
+    uint32_t *pGPIOA_MODER = (uint32_t *)0x48000000;
+    uint32_t *pGPIOA_ODR   = (uint32_t *)0x48000014;
+    uint32_t *pGPIOC_MODER = (uint32_t *)0x48000800;
+    uint32_t *pGPIOC_IDR   = (uint32_t *)0x48000810;
+
+    // 1. Enable clocks for GPIOA and GPIOC
+    *pRCC_AHB2ENR |= (1 << 0);  // Enable GPIOA
+    *pRCC_AHB2ENR |= (1 << 2);  // Enable GPIOC
+
+    // 2. Configure PA5 as output
+    *pGPIOA_MODER &= ~(3 << (5 * 2));  // Clear MODER5
+    *pGPIOA_MODER |=  (1 << (5 * 2));  // Set MODER5 to output mode
+
+    // 3. Configure PC13 as input (Optional: already input by default)
+    *pGPIOC_MODER &= ~(3 << (13 * 2));  // Clear MODER13 to set PC13 as input
+
+    // 4. Main loop: Toggle PA5 when button on PC13 is pressed
+    while (1)
+    {
+        uint8_t value = (uint8_t)((*pGPIOC_IDR >> 13) & 0x01);  // Read PC13
+
+        if (value == 0)  // If button is pressed (active low)
+        {
+            delay();                      // Basic debounce delay
+            *pGPIOA_ODR ^= (1 << 5);      // Toggle PA5 (LED)
+        }
+    }
+}
+
+// Delay function (basic loop-based)
+void delay(void)
+{
+    for (uint32_t i = 0; i <= 200000; i++);
+}
