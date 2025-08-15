@@ -1,0 +1,94 @@
+#include <stdint.h>
+
+#define RCC_AHB2ENR     (*(volatile uint32_t*)0x4002104C)
+#define GPIOB_MODER     (*(volatile uint32_t*)0x48000400)
+#define GPIOB_ODR       (*(volatile uint32_t*)0x48000414)
+#define GPIOA_MODER     (*(volatile uint32_t*)0x48000000)
+#define GPIOA_IDR       (*(volatile uint32_t*)0x48000010)
+#define GPIOA_PUPDR     (*(volatile uint32_t*)0x4800000c)
+
+
+// Bit positions
+#define RCC_AHB2ENR_GPIOB_EN   (1 << 1)
+#define RCC_AHB2ENR_GPIOA_EN   (1 << 0)
+
+void delay(void) {
+    for (volatile int i = 0; i < 100000; i++);
+}
+
+void gpio_init(void) {
+    // Enable clock for GPIOB and GPIOC
+    RCC_AHB2ENR |= RCC_AHB2ENR_GPIOB_EN | RCC_AHB2ENR_GPIOA_EN;
+
+    // Set PB0–PB7 as output (MODER = 01 for each pin)
+    GPIOB_MODER &= ~(0xFFFF);      // Clear MODER[15:0]
+    GPIOB_MODER |=  (0x5555);      // Set PB0–PB7 as output
+
+    // Set PA11, PA12 as input (MODER = 00)
+    GPIOA_MODER &= ~((3 << (11 * 2)) | (3 << (12 * 2)));
+
+    // Enable internal pull-ups
+    GPIOA_PUPDR &= ~((3 << (11 * 2)) | (3 << (12 * 2)));
+    GPIOA_PUPDR |=  ((1 << (11 * 2)) | (1 << (12 * 2)));
+}
+
+uint8_t read_switch1(void) {
+    return ((GPIOA_IDR >> 11) & 0x01) == 0;  // Active low
+}
+
+uint8_t read_switch2(void) {
+    return ((GPIOA_IDR >> 12) & 0x01) == 0;  // Active low
+}
+
+void display_on_leds(uint8_t count) {
+    uint8_t out = GPIOB_ODR & 0xFF;  // Keep current state
+
+    for (int i = 0; i < 8; i++) {
+        uint8_t bit = (count >> i) & 0x01;
+
+        if (i < 4) { // Active Low
+            if (bit == 0)
+                out |= (1 << i);  // OFF
+            else
+                out &= ~(1 << i); // ON
+        } else { // Active High
+            if (bit == 1)
+                out |= (1 << i);  // ON
+            else
+                out &= ~(1 << i); // OFF
+        }
+    }
+    GPIOB_ODR = (GPIOB_ODR & ~0xFF) | (out & 0xFF);
+}
+
+int main(void)
+{
+    gpio_init();
+
+    uint8_t count = 0;
+    display_on_leds(count);
+
+    while (1) {
+        if (read_switch1())
+        {
+            if (count < 255){
+            	count++;
+            	display_on_leds(count);
+            	delay();
+            	while (read_switch1()); // wait for release
+            }
+        }
+
+        if (read_switch2())
+        {
+            if (count > 0){
+            	count--;
+            	display_on_leds(count);
+            	delay();
+            	while (read_switch2());
+            }
+        }
+
+        display_on_leds(count); // continuous refresh
+    }
+}
